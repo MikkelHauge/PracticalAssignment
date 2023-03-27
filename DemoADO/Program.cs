@@ -1,67 +1,164 @@
 ﻿using DemoADO.Model;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
+using System.Reflection;
 
 namespace PracticalAssignment
 {
     class Program
     {
+        private static readonly string connectionString = @"Data Source=(localdb)\ProjectModels;Initial Catalog=Database1;Integrated Security=True;Pooling=False;Connect Timeout=30";
+        private static SqlConnection con = new SqlConnection(connectionString);
+        private static List<String> Users = new List<String>();
+        private static User user = null;
+
         static void Main(string[] args)
         {
-            /*
-             * Programmet udskriver resultaterne fra begge stored procedures, og that's it. 
-             * De 2 stored procedures er noteret som kommentarer i bunden af denne kode - fordi det var et nemt sted at finde dem, for dig, tænkte jeg.
-             */
+            con.Open();
+            RunProgram();
+            con.Close();
+        }
 
+        public static void RunProgram()
+        {
             Console.WriteLine("-------------------------------Starter-------------------------------");
-            Console.WriteLine("---------------------------------------------------------------------");
             Console.WriteLine();
 
-            string connStr = @"Data Source=(localdb)\ProjectModels;Initial Catalog=Database1;Integrated Security=True;Pooling=False;Connect Timeout=30";
-            SqlConnection con = new SqlConnection(connStr);
+            Console.WriteLine("Vælg eller skriv navnet på en stored procedure: (GetUsernamesStartingWithX, GetUserDetails)");
+            Console.WriteLine("1: GetUsernamesStartingWithX");
+            Console.WriteLine("2: GetUserDetails");
 
-            List<User> Users = new List<User>();
+            AskForInput();
 
-            try
-            {
-                con.Open();
-                // 2 Stored Procedures: 
-
-                User user = GetUserDetails(1, con); // hvilket som helst tal (id) (der er kun resultater for 1 - 7, i databasen! sorry :D
-                Console.WriteLine(user.ToString());
-
-
-                List<string> Usernames = Nameswithletter('a', con); // hvilket som helst bogstav (der er kun resultater for a, b c og m, i databasen! sorry :D
-
-                foreach (var name in Usernames)
-                {
-                    Console.WriteLine(name);
-                }
-            }
-
-            catch (Exception ex)
-            {
-                Console.WriteLine("Fejl: " + ex.Message);
-            }
-            finally
-            {
-                // Luk forbindelsen
-                con.Close();
-            }
-
-            Console.WriteLine("---------------------------------------------------------------------");
+            Console.WriteLine();
             Console.WriteLine("-------------------------------Færdig--------------------------------");
             Console.ReadLine();
         }
 
+        private static void AskForInput()
+        {
+            string userInput = Console.ReadLine();
 
-        private static User GetUserDetails(int id, SqlConnection con)
+            if (userInput.ToLower() == "getusernamesstartingwithx" || userInput == "1")
+            {
+                Console.WriteLine("Hent alle brugere ud fra forbogstav");
+
+                GetUsersFromFirstLetter();
+
+            }
+            else if (userInput.ToLower() == "getuserdetails" || userInput == "2")
+            {
+                Console.WriteLine("Hent en bruger ud fra ID");
+                InputUserID();
+            }
+            else
+            {
+                Console.WriteLine("Forkert input - prøv indtastningen igen");
+                AskForInput();
+            }
+        }
+
+
+
+        private static void GetUsersFromFirstLetter()
+        {
+            string letter;
+            do
+            {
+                Console.WriteLine("Indtast forbogstav (eller skriv 'exit' for at stoppe): ");
+                Console.WriteLine("NB: Den prøver at hente brugere, med det første bogstav i den string du skriver.");
+
+                letter = Console.ReadLine();
+
+                if (letter.ToLower() == "exit")
+                {
+                    RunProgram();
+                }
+
+                Users = GetUsernamesStartingWithX(letter);
+
+                if (Users.Count == 0)
+                    Console.WriteLine($"Ingen brugere med '{letter}' som forbogstav blev fundet. Prøv et andet!");
+                else
+                {
+                    Console.WriteLine($"Der er fundet følgende brugere, med forbogstav: '{letter}':");
+                    foreach (string username in Users)
+                    {
+                        Console.WriteLine(username);
+                    }
+                }
+
+            } while (true);
+        }
+
+        private static List<string> GetUsernamesStartingWithX(string letter)
+        {
+
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                con.Open();
+                string sqlGetUsernames = "GetUsernamesStartingWithX";
+
+                using (SqlCommand cmd = new SqlCommand(sqlGetUsernames, con))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@StartLetter", letter);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string username = reader.GetString(0);
+                            Users.Add(username);
+                        }
+                    }
+                }
+            }
+            return Users;
+        }
+        private static void InputUserID()
+        {
+            Console.WriteLine("Indtast ID (Fx. BBA34C89-4D6E-426B-B6F6-03BA6DF65B93 ) ");
+            string inputUserID = Console.ReadLine();
+            FetchUser(inputUserID);
+        }
+
+        private static User FetchUser(string inputUserID)
+        {
+            Guid userId;
+            if (Guid.TryParse(inputUserID, out userId)) // string til GUID
+            {
+                user = GetUserDetails(userId);
+                if (user != null)
+                {
+                    Console.WriteLine(user.ToString());
+                    
+                }
+                else
+                {
+                    Console.WriteLine("User ikke fundet.");
+                }
+                return user;
+            }
+            else
+            {
+                Console.WriteLine("Ugyldigt ID. Prøv igen.");
+                InputUserID(); // spørg efter ID igen.
+                return null;
+            }
+        }
+
+        private static User GetUserDetails(Guid userId)
         {
             User user = null;
+            string execStoredProcedure = "EXEC GetUserDetails @UserId";
+            SqlCommand cmdSelect = new SqlCommand(execStoredProcedure, con);
+            cmdSelect.Parameters.AddWithValue("@UserId", userId);
 
-            string sqlGetUserDetails = "Exec GetUserDetails @UserID = " + id;
-            SqlCommand cmdSelect = new SqlCommand(sqlGetUserDetails, con);
             SqlDataReader reader = cmdSelect.ExecuteReader();
 
             while (reader.Read())
@@ -69,61 +166,11 @@ namespace PracticalAssignment
                 string name = reader["Username"].ToString();
                 string email = reader["Email"].ToString();
                 string address = reader["Address"].ToString();
-
-                user = new User(name, email, address);
+                user = new User(name, email, address, userId);
             }
 
             reader.Close();
             return user;
         }
-
-        private static List<string> Nameswithletter(char a, SqlConnection con)
-        {
-            List<string> Usernames = new List<string>();
-            string sqlGetUsersStartingWithA = "Exec getUsersStartingWithA @FirstLetter = '" + a + "'";
-            SqlCommand cmdSelect2 = new SqlCommand(sqlGetUsersStartingWithA, con);
-
-            SqlDataReader reader = cmdSelect2.ExecuteReader();
-
-            while (reader.Read())
-            {
-                string name = reader["Username"].ToString();
-                Usernames.Add(name);
-            }
-            reader.Close();
-            return Usernames;
-        }
     }
 }
-/*
-
-CREATE   PROCEDURE GetUserDetails
-    @UserID INT
-AS
-BEGIN
-    IF @UserID IS NULL
-    BEGIN
-        RAISERROR('Invalid input.', 16, 1)
-        RETURN
-    END
-    ELSE
-    SELECT Username, Email, Address
-    FROM Usernames U
-    JOIN Emails E ON U.UserID = E.UserID
-    JOIN Addresses A ON U.UserID = A.UserID
-    WHERE U.UserID = @UserID
-END
-
-
-
-
-CREATE PROCEDURE GetUsersStartingWithA
-	@FirstLetter char(1)
-AS
-BEGIN
-    SELECT Username
-    FROM Usernames
-    WHERE Username LIKE @FirstLetter + '%'
-END
-
-*/

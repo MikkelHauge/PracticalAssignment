@@ -1,22 +1,27 @@
-﻿namespace DemoADO.Model
+﻿
+using System;
+using System.Collections.Generic;
+
+namespace DemoADO.Model
 {
     public class User
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; }
         public string Email { get; set; }
         public string Address { get; set; }
 
-        public User(string name, string email, string address)
+        public User(string name, string email, string address, Guid id)
         {
             Name = name;
             Email = email;
             Address = address;
+            Id = id;
         }
-
         public override string ToString()
         {
-            return "Name: " + Name + "\nEmail:" + Email + "\nAddress: " + Address;
+            return "Name: " + Name + "\nEmail:" + Email + "\nAddress: " + Address + "\nGUID: " + Id;
         }
     }
+
 }

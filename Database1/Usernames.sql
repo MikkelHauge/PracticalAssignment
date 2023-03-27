@@ -1,17 +1,14 @@
-﻿CREATE TABLE Usernames
-(
-    UserID INT PRIMARY KEY,
-    Username VARCHAR(50)
-)
+﻿CREATE TABLE Usernames (
+    UserId UNIQUEIDENTIFIER PRIMARY KEY,
+    Username VARCHAR(50) NOT NULL
+);
 go
-CREATE TABLE Emails
-(
-    UserID INT PRIMARY KEY,
-    Email VARCHAR(50)
-)
+CREATE TABLE Emails (
+    UserId UNIQUEIDENTIFIER PRIMARY KEY,
+    Email VARCHAR(50) NOT NULL
+);
 go
-CREATE TABLE Addresses
-(
-    UserID INT PRIMARY KEY,
-    Address VARCHAR(100)
-)
+CREATE TABLE Addresses (
+    UserId UNIQUEIDENTIFIER PRIMARY KEY,
+    Address VARCHAR(200) NOT NULL
+);
